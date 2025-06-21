@@ -1,8 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken'); // For creating tokens
-const mongoose = require('mongoose');
 const formidable = require("formidable");
 const fs = require("fs");
 const path = require('path');
@@ -10,15 +7,15 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
 
-const PhysicalTherapyPlan = require('../models/physicalTherapy/PhysicalTherapyPlan');
-const PhysicalTherapyExam = require('../models/physicalTherapy/PhysicalTherapyExam');
-const PatientPhysicalTherapyAssignment = require('../models/physicalTherapy/PatientPhysicalTherapyAssignment');
+const ABAPlan = require('../models/ABA/ABAPlan');
+const ABAExam = require('../models/ABA/ABAExam');
+const PatientABAAssignment = require('../models/ABA/PatientABAAssignment');
 const Patient = require('../models/users/Patient');
 
 
 
 // Add Physical Therapy Assignment
-router.post('/assign-to-physical', async (req, res) => {
+router.post('/assign-to-ABA', async (req, res) => {
   const { patientId, notes } = req.body;
 
   if (!patientId) {
@@ -31,15 +28,15 @@ router.post('/assign-to-physical', async (req, res) => {
       return res.status(404).json({ message: 'Patient not found' });
     }
 
-    // Ensure the patient is not already assigned to physical therapy
-    const existingAssignment = await PatientPhysicalTherapyAssignment.findOne({
+    // Ensure the patient is not already assigned to ABA
+    const existingAssignment = await PatientABAAssignment.findOne({
       patient: patientId,
     });
     if (existingAssignment) {
-      return res.status(400).json({ message: 'Patient already assigned to physical therapy' });
+      return res.status(400).json({ message: 'Patient already assigned to ABA' });
     }
 
-    const assignment = new PatientPhysicalTherapyAssignment({
+    const assignment = new PatientABAAssignment({
       patient: patientId,
       notes: notes || '',
       status: 'active',
@@ -47,14 +44,14 @@ router.post('/assign-to-physical', async (req, res) => {
 
     await assignment.save();
 
-    res.status(201).json({ message: 'Patient assigned to physical therapy successfully', assignment });
+    res.status(201).json({ message: 'Patient assigned to ABA successfully', assignment });
   } catch (err) {
-    res.status(500).json({ message: 'Error assigning patient to physical therapy', error: err.message });
+    res.status(500).json({ message: 'Error assigning patient to ABA', error: err.message });
   }
 });
 
 // Get Physical Therapy Assignments
-router.get('/physical-therapy-assignments', async (req, res) => {
+router.get('/ABA-assignments', async (req, res) => {
   const { page = 1, limit = 10, search = '' } = req.query;
 
   try {
@@ -76,7 +73,7 @@ router.get('/physical-therapy-assignments', async (req, res) => {
       }
     }
 
-    const assignments = await PatientPhysicalTherapyAssignment.find(query)
+    const assignments = await PatientABAAssignment.find(query)
       .populate({
         path: 'patient',
         select: 'name email phone disabilityType',
@@ -86,7 +83,7 @@ router.get('/physical-therapy-assignments', async (req, res) => {
       .limit(Number.parseInt(limit))
       .sort({ assignedDate: -1 });
 
-    const totalAssignments = await PatientPhysicalTherapyAssignment.countDocuments(query);
+    const totalAssignments = await PatientABAAssignment.countDocuments(query);
 
     res.status(200).json({
       assignments,
@@ -95,35 +92,35 @@ router.get('/physical-therapy-assignments', async (req, res) => {
       totalAssignments,
     });
   } catch (err) {
-    res.status(500).json({ message: 'Error fetching physical therapy assignments' });
+    res.status(500).json({ message: 'Error fetching ABA assignments' });
   }
 });
 
 // Unassign from Physical Therapy
-router.delete('/unassign-from-physical/:patientId', async (req, res) => {
+router.delete('/unassign-from-ABA/:patientId', async (req, res) => {
   const { patientId } = req.params;
 
   try {
-    const assignment = await PatientPhysicalTherapyAssignment.findOneAndDelete({ patient: patientId });
+    const assignment = await PatientABAAssignment.findOneAndDelete({ patient: patientId });
 
     if (!assignment) {
       return res.status(404).json({ message: 'Assignment not found' });
     }
 
-    res.status(200).json({ message: 'Patient unassigned from physical therapy' });
+    res.status(200).json({ message: 'Patient unassigned from  ABA' });
   } catch (err) {
     res.status(500).json({ message: 'Error unassigning patient' });
   }
 });
 
-// routes/physical-therapy.js (continued)
+// routes/ABA.js (continued)
 
 // Get Physical Therapy Plan for a patient
 router.get('/plan/:patientId', async (req, res) => {
   const { patientId } = req.params
 
   try {
-    const plan = await PhysicalTherapyPlan.findOne({ patient: patientId }).sort({ lastModified: -1 })
+    const plan = await ABAPlan.findOne({ patient: patientId }).sort({ lastModified: -1 })
     if (!plan) {
       return res.status(404).json({ message: 'No plan found for this patient' })
     }
@@ -138,7 +135,7 @@ router.post('/plan', async (req, res) => {
   const { patient, title, content, createdBy } = req.body
 
   try {
-    const plan = new PhysicalTherapyPlan({
+    const plan = new ABAPlan({
       patient,
       title,
       content,
@@ -160,7 +157,7 @@ router.put('/plan/:planId', async (req, res) => {
   const { title, content, createdBy } = req.body
 
   try {
-    const plan = await PhysicalTherapyPlan.findByIdAndUpdate(
+    const plan = await ABAPlan.findByIdAndUpdate(
       planId,
       { title, content, createdBy: createdBy || 'System', lastModified: new Date() },
       { new: true }
@@ -182,7 +179,7 @@ router.post("/upload-plan", (req, res) => {
   form.keepExtensions = true;
   form.maxFileSize = 10 * 1024 * 1024; // 10MB
 
-  const uploadDir = path.join(__dirname, "../uploads/physical-therapy/plan");
+  const uploadDir = path.join(__dirname, "../uploads/ABA/plan");
   if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
   form.uploadDir = uploadDir;
@@ -214,8 +211,8 @@ router.post("/upload-plan", (req, res) => {
     fs.renameSync(tempFilePath, finalFilePath);
 
     try {
-      // Now link the file to the patient in your database (PhysicalTherapyPlan)
-      const plan = await PhysicalTherapyPlan.findOneAndUpdate(
+      // Now link the file to the patient in your database (ABAPlan)
+      const plan = await ABAPlan.findOneAndUpdate(
         { patient: patientId }, // Find the plan by patientId
         {
           filePath: uniqueFileName,
@@ -249,7 +246,7 @@ router.post('/exam', async (req, res) => {
   const { patient, title, content, createdBy } = req.body
 
   try {
-    const exam = new PhysicalTherapyExam({
+    const exam = new ABAExam({
       patient,
       title,
       content,
@@ -269,7 +266,7 @@ router.get('/exam/:patientId', async (req, res) => {
   const { patientId } = req.params
 
   try {
-    const exam = await PhysicalTherapyExam.findOne({ patient: patientId }).sort({ lastModified: -1 })
+    const exam = await ABAExam.findOne({ patient: patientId }).sort({ lastModified: -1 })
     if (!exam) {
       return res.status(404).json({ message: 'No exam found for this patient' })
     }
@@ -285,7 +282,7 @@ router.put('/exam/:examId', async (req, res) => {
   const { title, content, createdBy } = req.body
 
   try {
-    const exam = await PhysicalTherapyExam.findByIdAndUpdate(
+    const exam = await ABAExam.findByIdAndUpdate(
       examId,
       { title, content, createdBy: createdBy || 'System', lastModified: new Date() },
       { new: true }
@@ -307,7 +304,7 @@ router.post("/upload-exam", (req, res) => {
   form.keepExtensions = true;
   form.maxFileSize = 10 * 1024 * 1024; // 10MB
 
-  const uploadDir = path.join(__dirname, "../uploads/physical-therapy/exam");
+  const uploadDir = path.join(__dirname, "../uploads/ABA/exam");
   if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
   form.uploadDir = uploadDir;
@@ -339,8 +336,8 @@ router.post("/upload-exam", (req, res) => {
     fs.renameSync(tempFilePath, finalFilePath);
 
     try {
-      // Now link the file to the patient in your database (PhysicalTherapyExam)
-      const exam = await PhysicalTherapyExam.findOneAndUpdate(
+      // Now link the file to the patient in your database (ABAExam)
+      const exam = await ABAExam.findOneAndUpdate(
         { patient: patientId }, // Find the exam by patientId
         {
           filePath: uniqueFileName,

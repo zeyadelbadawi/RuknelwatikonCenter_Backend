@@ -1,7 +1,7 @@
-// models/PhysicalTherapyExam.js
+// models/ABAPlan.js
 const mongoose = require('mongoose');
 
-const physicalTherapyExamSchema = new mongoose.Schema(
+const SpecialEducationPlanSchema = new mongoose.Schema(
   {
     patient: {
       type: mongoose.Schema.Types.ObjectId,
@@ -26,6 +26,6 @@ const physicalTherapyExamSchema = new mongoose.Schema(
   { timestamps: true } // Automatically manages createdAt and updatedAt fields
 );
 
-const PhysicalTherapyExam = mongoose.model('PhysicalTherapyExam', physicalTherapyExamSchema);
+const SpecialEducationPlan = mongoose.model('SpecialEducationPlan', SpecialEducationPlanSchema);
 
-module.exports = PhysicalTherapyExam;
+module.exports = SpecialEducationPlan;

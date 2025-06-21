@@ -10,15 +10,15 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
 
-const PhysicalTherapyPlan = require('../models/physicalTherapy/PhysicalTherapyPlan');
-const PhysicalTherapyExam = require('../models/physicalTherapy/PhysicalTherapyExam');
-const PatientPhysicalTherapyAssignment = require('../models/physicalTherapy/PatientPhysicalTherapyAssignment');
+const OccupationalTherapyPlan = require('../models/Occupational-therapy/OccupationalTherapyPlan');
+const OccupationaltherapyExam = require('../models/Occupational-therapy/OccupationalTherapyExam');
+const PatientoccupationalTherapyAssignment = require('../models/Occupational-therapy/PatientOccupationalTherapyAssignment');
 const Patient = require('../models/users/Patient');
 
 
 
-// Add Physical Therapy Assignment
-router.post('/assign-to-physical', async (req, res) => {
+// Add Occupational Therapy Assignment
+router.post('/assign-to-Occupational', async (req, res) => {
   const { patientId, notes } = req.body;
 
   if (!patientId) {
@@ -31,15 +31,15 @@ router.post('/assign-to-physical', async (req, res) => {
       return res.status(404).json({ message: 'Patient not found' });
     }
 
-    // Ensure the patient is not already assigned to physical therapy
-    const existingAssignment = await PatientPhysicalTherapyAssignment.findOne({
+    // Ensure the patient is not already assigned to Occupational therapy
+    const existingAssignment = await PatientoccupationalTherapyAssignment.findOne({
       patient: patientId,
     });
     if (existingAssignment) {
-      return res.status(400).json({ message: 'Patient already assigned to physical therapy' });
+      return res.status(400).json({ message: 'Patient already assigned to Occupational therapy' });
     }
 
-    const assignment = new PatientPhysicalTherapyAssignment({
+    const assignment = new PatientoccupationalTherapyAssignment({
       patient: patientId,
       notes: notes || '',
       status: 'active',
@@ -47,14 +47,14 @@ router.post('/assign-to-physical', async (req, res) => {
 
     await assignment.save();
 
-    res.status(201).json({ message: 'Patient assigned to physical therapy successfully', assignment });
+    res.status(201).json({ message: 'Patient assigned to Occupational therapy successfully', assignment });
   } catch (err) {
-    res.status(500).json({ message: 'Error assigning patient to physical therapy', error: err.message });
+    res.status(500).json({ message: 'Error assigning patient to Occupational therapy', error: err.message });
   }
 });
 
-// Get Physical Therapy Assignments
-router.get('/physical-therapy-assignments', async (req, res) => {
+// Get Occupational Therapy Assignments
+router.get('/Occupational-therapy-assignments', async (req, res) => {
   const { page = 1, limit = 10, search = '' } = req.query;
 
   try {
@@ -76,7 +76,7 @@ router.get('/physical-therapy-assignments', async (req, res) => {
       }
     }
 
-    const assignments = await PatientPhysicalTherapyAssignment.find(query)
+    const assignments = await PatientoccupationalTherapyAssignment.find(query)
       .populate({
         path: 'patient',
         select: 'name email phone disabilityType',
@@ -86,7 +86,7 @@ router.get('/physical-therapy-assignments', async (req, res) => {
       .limit(Number.parseInt(limit))
       .sort({ assignedDate: -1 });
 
-    const totalAssignments = await PatientPhysicalTherapyAssignment.countDocuments(query);
+    const totalAssignments = await PatientoccupationalTherapyAssignment.countDocuments(query);
 
     res.status(200).json({
       assignments,
@@ -95,50 +95,50 @@ router.get('/physical-therapy-assignments', async (req, res) => {
       totalAssignments,
     });
   } catch (err) {
-    res.status(500).json({ message: 'Error fetching physical therapy assignments' });
+    res.status(500).json({ message: 'Error fetching Occupational therapy assignments' });
   }
 });
 
-// Unassign from Physical Therapy
-router.delete('/unassign-from-physical/:patientId', async (req, res) => {
+// Unassign from Occupational Therapy
+router.delete('/unassign-from-Occupational/:patientId', async (req, res) => {
   const { patientId } = req.params;
 
   try {
-    const assignment = await PatientPhysicalTherapyAssignment.findOneAndDelete({ patient: patientId });
+    const assignment = await PatientoccupationalTherapyAssignment.findOneAndDelete({ patient: patientId });
 
     if (!assignment) {
       return res.status(404).json({ message: 'Assignment not found' });
     }
 
-    res.status(200).json({ message: 'Patient unassigned from physical therapy' });
+    res.status(200).json({ message: 'Patient unassigned from Occupational therapy' });
   } catch (err) {
     res.status(500).json({ message: 'Error unassigning patient' });
   }
 });
 
-// routes/physical-therapy.js (continued)
+// routes/Occupational-therapy.js (continued)
 
-// Get Physical Therapy Plan for a patient
+// Get Occupational Therapy Plan for a patient
 router.get('/plan/:patientId', async (req, res) => {
   const { patientId } = req.params
 
   try {
-    const plan = await PhysicalTherapyPlan.findOne({ patient: patientId }).sort({ lastModified: -1 })
+    const plan = await OccupationalTherapyPlan.findOne({ patient: patientId }).sort({ lastModified: -1 })
     if (!plan) {
       return res.status(404).json({ message: 'No plan found for this patient' })
     }
     res.status(200).json(plan)
   } catch (err) {
-    res.status(500).json({ message: 'Error fetching Physical Therapy plan' })
+    res.status(500).json({ message: 'Error fetching Occupational Therapy plan' })
   }
 })
 
-// Create Physical Therapy Plan
+// Create Occupational Therapy Plan
 router.post('/plan', async (req, res) => {
   const { patient, title, content, createdBy } = req.body
 
   try {
-    const plan = new PhysicalTherapyPlan({
+    const plan = new OccupationalTherapyPlan({
       patient,
       title,
       content,
@@ -150,17 +150,17 @@ router.post('/plan', async (req, res) => {
 
     res.status(201).json(plan)
   } catch (err) {
-    res.status(500).json({ message: 'Error creating Physical Therapy plan' })
+    res.status(500).json({ message: 'Error creating Occupational Therapy plan' })
   }
 })
 
-// Update Physical Therapy Plan
+// Update Occupational Therapy Plan
 router.put('/plan/:planId', async (req, res) => {
   const { planId } = req.params
   const { title, content, createdBy } = req.body
 
   try {
-    const plan = await PhysicalTherapyPlan.findByIdAndUpdate(
+    const plan = await OccupationalTherapyPlan.findByIdAndUpdate(
       planId,
       { title, content, createdBy: createdBy || 'System', lastModified: new Date() },
       { new: true }
@@ -172,7 +172,7 @@ router.put('/plan/:planId', async (req, res) => {
 
     res.status(200).json(plan)
   } catch (err) {
-    res.status(500).json({ message: 'Error updating Physical Therapy plan' })
+    res.status(500).json({ message: 'Error updating Occupational Therapy plan' })
   }
 })
 
@@ -182,7 +182,7 @@ router.post("/upload-plan", (req, res) => {
   form.keepExtensions = true;
   form.maxFileSize = 10 * 1024 * 1024; // 10MB
 
-  const uploadDir = path.join(__dirname, "../uploads/physical-therapy/plan");
+  const uploadDir = path.join(__dirname, "../uploads/Occupational-therapy/plan");
   if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
   form.uploadDir = uploadDir;
@@ -214,8 +214,8 @@ router.post("/upload-plan", (req, res) => {
     fs.renameSync(tempFilePath, finalFilePath);
 
     try {
-      // Now link the file to the patient in your database (PhysicalTherapyPlan)
-      const plan = await PhysicalTherapyPlan.findOneAndUpdate(
+      // Now link the file to the patient in your database (OccupationalTherapyPlan)
+      const plan = await OccupationalTherapyPlan.findOneAndUpdate(
         { patient: patientId }, // Find the plan by patientId
         {
           filePath: uniqueFileName,
@@ -244,12 +244,12 @@ router.post("/upload-plan", (req, res) => {
 
 
 
-// Create Physical Therapy Exam
+// Create Occupational Therapy Exam
 router.post('/exam', async (req, res) => {
   const { patient, title, content, createdBy } = req.body
 
   try {
-    const exam = new PhysicalTherapyExam({
+    const exam = new OccupationaltherapyExam({
       patient,
       title,
       content,
@@ -261,7 +261,7 @@ router.post('/exam', async (req, res) => {
 
     res.status(201).json(exam)
   } catch (err) {
-    res.status(500).json({ message: 'Error creating Physical Therapy Exam' })
+    res.status(500).json({ message: 'Error creating Occupational Therapy Exam' })
   }
 })
 
@@ -269,23 +269,23 @@ router.get('/exam/:patientId', async (req, res) => {
   const { patientId } = req.params
 
   try {
-    const exam = await PhysicalTherapyExam.findOne({ patient: patientId }).sort({ lastModified: -1 })
+    const exam = await OccupationaltherapyExam.findOne({ patient: patientId }).sort({ lastModified: -1 })
     if (!exam) {
       return res.status(404).json({ message: 'No exam found for this patient' })
     }
     res.status(200).json(exam)
   } catch (err) {
-    res.status(500).json({ message: 'Error fetching Physical Therapy exam' })
+    res.status(500).json({ message: 'Error fetching Occupational Therapy exam' })
   }
 })
 
-// Update Physical Therapy Exam
+// Update Occupational Therapy Exam
 router.put('/exam/:examId', async (req, res) => {
   const { ExamId } = req.params
   const { title, content, createdBy } = req.body
 
   try {
-    const exam = await PhysicalTherapyExam.findByIdAndUpdate(
+    const exam = await OccupationaltherapyExam.findByIdAndUpdate(
       examId,
       { title, content, createdBy: createdBy || 'System', lastModified: new Date() },
       { new: true }
@@ -297,7 +297,7 @@ router.put('/exam/:examId', async (req, res) => {
 
     res.status(200).json(exam)
   } catch (err) {
-    res.status(500).json({ message: 'Error updating Physical Therapy exam' })
+    res.status(500).json({ message: 'Error updating Occupational Therapy exam' })
   }
 })
 
@@ -307,7 +307,7 @@ router.post("/upload-exam", (req, res) => {
   form.keepExtensions = true;
   form.maxFileSize = 10 * 1024 * 1024; // 10MB
 
-  const uploadDir = path.join(__dirname, "../uploads/physical-therapy/exam");
+  const uploadDir = path.join(__dirname, "../uploads/Occupational-therapy/exam");
   if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
   form.uploadDir = uploadDir;
@@ -339,8 +339,8 @@ router.post("/upload-exam", (req, res) => {
     fs.renameSync(tempFilePath, finalFilePath);
 
     try {
-      // Now link the file to the patient in your database (PhysicalTherapyExam)
-      const exam = await PhysicalTherapyExam.findOneAndUpdate(
+      // Now link the file to the patient in your database (OccupationaltherapyExam)
+      const exam = await OccupationaltherapyExam.findOneAndUpdate(
         { patient: patientId }, // Find the exam by patientId
         {
           filePath: uniqueFileName,
