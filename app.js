@@ -18,7 +18,18 @@ const corsOptions = {
 app.use(cors(corsOptions)); // Apply CORS with configured options
 
 // Serve static files from the 'public' folder
+app.use("/uploads/physical-therapy/exam",express.static(path.join(__dirname, 'uploads','physical-therapy','exam'))); 
 app.use("/uploads/physical-therapy/plan",express.static(path.join(__dirname, 'uploads','physical-therapy','plan'))); 
+app.use("/uploads/DRAST-7ALA/plan",express.static(path.join(__dirname, 'uploads','DRAST-7ALA','plan'))); 
+app.use("/uploads/school-plan/plan",express.static(path.join(__dirname, 'uploads','school-plan','plan'))); 
+app.use("/uploads/Speech/exam",express.static(path.join(__dirname, 'uploads','Speech','exam'))); 
+app.use("/uploads/Speech/plan",express.static(path.join(__dirname, 'uploads','Speech','plan')));
+app.use("/uploads/ABA/exam",express.static(path.join(__dirname, 'uploads','ABA','exam'))); 
+app.use("/uploads/ABA/plan",express.static(path.join(__dirname, 'uploads','ABA','plan')));
+app.use("/uploads/Occupational-therapy/exam",express.static(path.join(__dirname, 'uploads','Occupational-therapy','exam'))); 
+app.use("/uploads/Occupational-therapy/plan",express.static(path.join(__dirname, 'uploads','Occupational-therapy','plan')));
+app.use("/uploads/Special-Education/exam",express.static(path.join(__dirname, 'uploads','Special-Education','exam'))); 
+app.use("/uploads/Special-Education/plan",express.static(path.join(__dirname, 'uploads','Special-Education','plan')));
 
 // Middleware
 app.use(express.static("public"));

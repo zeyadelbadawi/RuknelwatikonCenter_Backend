@@ -2,14 +2,12 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken'); // For creating tokens
-const Patient = require('../models/Patient');
-const VolunteerStudent = require('../models/VolunteerStudent');
-const Admin = require('../models/Admin');
-const Accountant = require('../models/Accountant');
+const Patient = require('../models/users/Patient');
+const Admin = require('../models/users/Admin');
+const Accountant = require('../models/users/Accountant');
 const PatientVisit = require('../models/PatientVisit');
-const PatientPhysicalTherapyAssignment = require('../models/physicalTherapy/PatientPhysicalTherapyAssignment');
 
-const Doctor = require('../models/Doctor');
+const Doctor = require('../models/users/Doctor');
 const cookieParser = require('cookie-parser');
 const authenticateUser = require('../authMiddleware'); // Import the middleware
 const Evolution = require('../models/Evolution');
@@ -22,11 +20,8 @@ const formidable = require("formidable");
 const fs = require("fs");
 const mammoth = require("mammoth");
 const path = require('path');
-const PatientPhysicalTherapyAssignment = require('../models/physicalTherapy/PatientPhysicalTherapyAssignment');
-const PhysicalTherapyPlan = require('../models/physicalTherapy/PhysicalTherapyPlan');
-const PhysicalTherapyExam = require('../models/physicalTherapy/PhysicalTherapyExam');
 
-const DrastHalaPlan = require('../models/DrastHalaPlans');
+const DrastHalaPlan = require('../models/drasthala/DrastHalaPlans');
 
 const { v4: uuidv4 } = require('uuid');
 
@@ -86,23 +81,7 @@ router.post("/signup/patient", async (req, res) => {
 });
 
 
-// Register Volunteer
-router.post("/signup/volunteer", async (req, res) => {
-  const { name, email, phone, volunteerType, availableHours, password } = req.body;
 
-  try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newVolunteer = new VolunteerStudent({
-      name, email, phone, volunteerType, availableHours, password: hashedPassword
-    });
-
-    await newVolunteer.save();
-    res.status(201).json({ message: 'Volunteer registered successfully' });
-  } catch (err) {
-    console.error("Error during volunteer registration:", err); // Added logging
-    res.status(500).json({ message: 'Error registering volunteer' });
-  }
-});
 
 // Endpoint to get all patients
 // Endpoint to fetch patients with pagination and search
@@ -458,42 +437,7 @@ router.post('/signin/patient', async (req, res) => {
   }
 });
 
-// Volunteer Login Route
 
-// Volunteer Login Route with refresh token handling
-router.post('/signin/volunteer', async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    const volunteer = await VolunteerStudent.findOne({ email });
-    if (!volunteer) {
-      return res.status(404).json({ message: 'Volunteer not found' });
-    }
-    const isMatch = await bcrypt.compare(password, volunteer.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
-
-    // Create access token
-    const accessToken = jwt.sign({ id: volunteer._id, role: 'volunteer' }, 'accessTokenSecret', { expiresIn: '1h' });
-
-    // Create refresh token
-    const refreshToken = jwt.sign({ id: volunteer._id, role: 'volunteer' }, 'refreshTokenSecret', { expiresIn: '7d' });
-
-    // Store refresh token in an HTTP-only cookie
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'Strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    // Send the access token in the response body
-    res.json({ accessToken });
-  } catch (err) {
-    console.error("Error during volunteer login:", err);
-    res.status(500).json({ message: 'Error logging in volunteer' });
-  }
-});
 // Edit Patient Route
 router.put('/edit-patient/:id', async (req, res) => {
   const { name, email, phone, dateOfBirth, address, gender } = req.body;
@@ -574,19 +518,6 @@ router.put('/doctor-password/:id', async (req, res) => {
 });
 
 
-router.put('/volunteer-password/:id', async (req, res) => {
-  const { password } = req.body;
-  const volunteerId = req.params.id;
-  try {
-    const volunteerdoctor = await VolunteerStudent.findById(volunteerId);
-    volunteerdoctor.password = await bcrypt.hash(password, 10);
-    await volunteerdoctor.save();
-    res.status(200).json({ message: 'Password updated successfully' });
-  } catch (err) {
-    res.status(500).json({ message: 'Error updating password' });
-  }
-});
-
 // Route to get a specific patient's profile by ID
 router.get('/view-profile/:id', async (req, res) => {
   const patientId = req.params.id;  // Get patient ID from URL parameters
@@ -605,91 +536,6 @@ router.get('/view-profile/:id', async (req, res) => {
   }
 });
 
-
-// Route to get all volunteers
-router.get('/volunteers', async (req, res) => {
-  const { page = 1, limit = 10, search = '' } = req.query;  // Default page=1, limit=10
-
-  try {
-    // Search query (to find volunteers by name, email, or other fields)
-    const query = {
-      $or: [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
-      ]
-    };
-
-    const volunteers = await VolunteerStudent.find(query)
-      .skip((page - 1) * limit)   // Skip volunteers based on page number
-      .limit(limit);              // Limit number of results per page
-
-    const totalVolunteers = await VolunteerStudent.countDocuments(query);  // Get total count for pagination
-
-    res.status(200).json({
-      volunteers: volunteers,
-      totalPages: Math.ceil(totalVolunteers / limit),  // Calculate total pages
-      currentPage: page,
-      totalVolunteers,
-    });
-  } catch (err) {
-    res.status(500).json({ message: 'Error fetching volunteers' });
-  }
-});
-
-// Route to delete a volunteer
-router.delete('/delete-volunteer/:id', async (req, res) => {
-  const volunteerId = req.params.id;  // Get the volunteer ID from the URL
-
-  try {
-    const deletedVolunteer = await VolunteerStudent.findByIdAndDelete(volunteerId);
-
-    if (!deletedVolunteer) {
-      return res.status(404).json({ message: 'Volunteer not found' });
-    }
-
-    res.status(200).json({ message: 'Volunteer deleted successfully' });
-  } catch (err) {
-    res.status(500).json({ message: 'Error deleting volunteer' });
-  }
-});
-
-
-
-// Route to edit a volunteer
-router.put('/edit-volunteer/:id', async (req, res) => {
-  const { name, email, phone, volunteerType, availableHours } = req.body;
-  const volunteerId = req.params.id;
-
-  try {
-    const updatedVolunteer = await VolunteerStudent.findByIdAndUpdate(volunteerId, {
-      name, email, phone, volunteerType, availableHours
-    }, { new: true });
-
-    if (!updatedVolunteer) {
-      return res.status(404).json({ message: 'Volunteer not found' });
-    }
-
-    res.status(200).json({ message: 'Volunteer updated successfully', volunteer: updatedVolunteer });
-  } catch (err) {
-    res.status(500).json({ message: 'Error updating volunteer' });
-  }
-});
-
-// Route to get a volunteer by ID
-router.get('/volunteer/:id', async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const volunteer = await VolunteerStudent.findById(id);
-    if (!volunteer) {
-      return res.status(404).json({ message: 'Volunteer not found' });
-    }
-
-    res.status(200).json(volunteer);
-  } catch (err) {
-    res.status(500).json({ message: 'Error fetching volunteer data' });
-  }
-});
 
 
 // **Get All Doctors (with pagination and search)**
@@ -793,8 +639,6 @@ router.post('/refresh', async (req, res) => {
       user = await Admin.findById(decoded.id);
     } else if (decoded.role === 'doctor') {
       user = await Doctor.findById(decoded.id);
-    } else if (decoded.role === 'volunteer') {
-      user = await VolunteerStudent.findById(decoded.id);
     } else if (decoded.role === 'patient') {
       user = await Patient.findById(decoded.id);
     }
@@ -816,9 +660,9 @@ router.post('/refresh', async (req, res) => {
 
 
 // Get Profile Information (based on the logged-in user)
-router.get('/profile', authenticateUser(['admin', 'doctor', 'volunteer', 'patient', 'accountant']), async (req, res) => {
+router.get('/profile', authenticateUser(['admin', 'doctor', 'patient', 'accountant']), async (req, res) => {
   const userId = req.user.id;  // Get the user ID from the decoded token
-  const userRole = req.user.role;  // Get the user role (admin, doctor, volunteer, or patient or accountant)
+  const userRole = req.user.role;  // Get the user role (admin, doctor, or patient or accountant)
 
   try {
     let user;
@@ -828,8 +672,6 @@ router.get('/profile', authenticateUser(['admin', 'doctor', 'volunteer', 'patien
       user = await Admin.findById(userId);
     } else if (userRole === 'doctor') {
       user = await Doctor.findById(userId);
-    } else if (userRole === 'volunteer') {
-      user = await VolunteerStudent.findById(userId);
     } else if (userRole === 'patient') {
       user = await Patient.findById(userId);
     } else if (userRole === 'accountant') {
@@ -897,22 +739,6 @@ router.get('/doctors/count', async (req, res) => {
   }
 });
 
-
-router.get('/volunteers/count', async (req, res) => {
-  try {
-    const totalVolunteers = await VolunteerStudent.countDocuments();
-    const joinedThisWeek = await VolunteerStudent.countDocuments({
-      createdAt: { $gte: new Date(new Date() - 7 * 24 * 60 * 60 * 1000) }
-    }); // Count Volunteers joined this week
-
-    res.status(200).json({
-      totalVolunteers,
-      joinedThisWeek
-    });
-  } catch (err) {
-    res.status(500).json({ message: 'Error fetching volunteer data' });
-  }
-});
 
 
 router.get('/accountants/count', async (req, res) => {
@@ -2449,371 +2275,6 @@ router.get('/income-trend', async (req, res) => {
     res.status(500).json({ message:'Server error' });
   }
 });
-
-
-
-
-
-
-// Add Physical Therapy Assignment
-router.post('/assign-to-physical', async (req, res) => {
-  const { patientId, notes } = req.body;
-
-  if (!patientId) {
-    return res.status(400).json({ message: 'Invalid or missing patient ID' });
-  }
-
-  try {
-    const patient = await Patient.findById(patientId);
-    if (!patient) {
-      return res.status(404).json({ message: 'Patient not found' });
-    }
-
-    // Ensure the patient is not already assigned to physical therapy
-    const existingAssignment = await PatientPhysicalTherapyAssignment.findOne({
-      patient: patientId,
-    });
-    if (existingAssignment) {
-      return res.status(400).json({ message: 'Patient already assigned to physical therapy' });
-    }
-
-    const assignment = new PatientPhysicalTherapyAssignment({
-      patient: patientId,
-      notes: notes || '',
-      status: 'active',
-    });
-
-    await assignment.save();
-
-    res.status(201).json({ message: 'Patient assigned to physical therapy successfully', assignment });
-  } catch (err) {
-    res.status(500).json({ message: 'Error assigning patient to physical therapy', error: err.message });
-  }
-});
-
-// Get Physical Therapy Assignments
-router.get('/physical-therapy-assignments', async (req, res) => {
-  const { page = 1, limit = 10, search = '' } = req.query;
-
-  try {
-    const query = {};
-    if (search) {
-      const patients = await Patient.find({
-        name: { $regex: search, $options: 'i' },
-      }).select('_id');
-
-      if (patients.length > 0) {
-        query.patient = { $in: patients.map((p) => p._id) };
-      } else {
-        return res.status(200).json({
-          assignments: [],
-          totalPages: 0,
-          currentPage: Number.parseInt(page),
-          totalAssignments: 0,
-        });
-      }
-    }
-
-    const assignments = await PatientPhysicalTherapyAssignment.find(query)
-      .populate({
-        path: 'patient',
-        select: 'name email phone disabilityType',
-        model: 'Patient',
-      })
-      .skip((Number.parseInt(page) - 1) * Number.parseInt(limit))
-      .limit(Number.parseInt(limit))
-      .sort({ assignedDate: -1 });
-
-    const totalAssignments = await PatientPhysicalTherapyAssignment.countDocuments(query);
-
-    res.status(200).json({
-      assignments,
-      totalPages: Math.ceil(totalAssignments / Number.parseInt(limit)),
-      currentPage: Number.parseInt(page),
-      totalAssignments,
-    });
-  } catch (err) {
-    res.status(500).json({ message: 'Error fetching physical therapy assignments' });
-  }
-});
-
-// Unassign from Physical Therapy
-router.delete('/unassign-from-physical/:patientId', async (req, res) => {
-  const { patientId } = req.params;
-
-  try {
-    const assignment = await PatientPhysicalTherapyAssignment.findOneAndDelete({ patient: patientId });
-
-    if (!assignment) {
-      return res.status(404).json({ message: 'Assignment not found' });
-    }
-
-    res.status(200).json({ message: 'Patient unassigned from physical therapy' });
-  } catch (err) {
-    res.status(500).json({ message: 'Error unassigning patient' });
-  }
-});
-
-// routes/physical-therapy.js (continued)
-
-// Get Physical Therapy Plan for a patient
-router.get('/physical-therapy/plan/:patientId', async (req, res) => {
-  const { patientId } = req.params
-
-  try {
-    const plan = await PhysicalTherapyPlan.findOne({ patient: patientId }).sort({ lastModified: -1 })
-    if (!plan) {
-      return res.status(404).json({ message: 'No plan found for this patient' })
-    }
-    res.status(200).json(plan)
-  } catch (err) {
-    res.status(500).json({ message: 'Error fetching Physical Therapy plan' })
-  }
-})
-
-// Create Physical Therapy Plan
-router.post('/physical-therapy/plan', async (req, res) => {
-  const { patient, title, content, createdBy } = req.body
-
-  try {
-    const plan = new PhysicalTherapyPlan({
-      patient,
-      title,
-      content,
-      createdBy: createdBy || 'System',
-      lastModified: new Date(),
-    })
-
-    await plan.save()
-
-    res.status(201).json(plan)
-  } catch (err) {
-    res.status(500).json({ message: 'Error creating Physical Therapy plan' })
-  }
-})
-
-// Update Physical Therapy Plan
-router.put('/physical-therapy/plan/:planId', async (req, res) => {
-  const { planId } = req.params
-  const { title, content, createdBy } = req.body
-
-  try {
-    const plan = await PhysicalTherapyPlan.findByIdAndUpdate(
-      planId,
-      { title, content, createdBy: createdBy || 'System', lastModified: new Date() },
-      { new: true }
-    )
-
-    if (!plan) {
-      return res.status(404).json({ message: 'Plan not found' })
-    }
-
-    res.status(200).json(plan)
-  } catch (err) {
-    res.status(500).json({ message: 'Error updating Physical Therapy plan' })
-  }
-})
-
-// routes/physical-therapy.js (continued)
-
-// Get Physical Therapy Exam for a patient
-// Get Physical Therapy Exam for a patient
-router.get('/physical-therapy/exam/:patientId', async (req, res) => {
-  const { patientId } = req.params;
-
-  try {
-    const exam = await PhysicalTherapyExam.findOne({ patient: patientId }).sort({ lastModified: -1 });
-
-    if (!exam) {
-      return res.status(404).json({ message: 'No exam found for this patient' });
-    }
-    res.status(200).json(exam); // Return exam document if it exists
-  } catch (err) {
-    res.status(500).json({ message: 'Error fetching Physical Therapy exam' });
-  }
-});
-
-// Create Physical Therapy Exam
-router.post('/physical-therapy/exam', async (req, res) => {
-  const { patient, title, content, score, createdBy } = req.body
-
-  try {
-    const exam = new PhysicalTherapyExam({
-      patient,
-      title,
-      content,
-      score: score || 0,
-      examDate: new Date(),
-      createdBy: createdBy || 'System',
-      lastModified: new Date(),
-    })
-
-    await exam.save()
-
-    res.status(201).json(exam)
-  } catch (err) {
-    res.status(500).json({ message: 'Error creating Physical Therapy exam' })
-  }
-})
-
-// Update Physical Therapy Exam
-router.put('/physical-therapy/exam/:examId', async (req, res) => {
-  const { examId } = req.params
-  const { title, content, score, createdBy } = req.body
-
-  try {
-    const exam = await PhysicalTherapyExam.findByIdAndUpdate(
-      examId,
-      { title, content, score: score || 0, createdBy: createdBy || 'System', lastModified: new Date() },
-      { new: true }
-    )
-
-    if (!exam) {
-      return res.status(404).json({ message: 'Exam not found' })
-    }
-
-    res.status(200).json(exam)
-  } catch (err) {
-    res.status(500).json({ message: 'Error updating Physical Therapy exam' })
-  }
-})
-
-router.post("/py/upload-plan", (req, res) => {
-  const form = new formidable.IncomingForm();
-  form.keepExtensions = true;
-  form.maxFileSize = 10 * 1024 * 1024; // 10MB
-
-  const uploadDir = path.join(__dirname, "../uploads/physical-therapy/plan");
-  if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-  form.uploadDir = uploadDir;
-
-  form.parse(req, async (err, fields, files) => {
-    if (err) {
-      console.error("Error parsing form:", err);
-      return res.status(500).json({ message: "Error parsing uploaded file" });
-    }
-
-    // Ensure that patientId is not an array and is a valid string
-    const patientId = fields.patientId && fields.patientId[0] ? fields.patientId[0] : null; // Extract the value from array if present
-
-    if (!patientId) {
-      console.log("Patient ID is missing!");
-      return res.status(400).json({ message: "Patient ID is required" });
-    }
-
-    // Log the patientId to verify it's received correctly
-    console.log("Patient ID from backend:", patientId);
-
-    const file = files.document[0];
-    const tempFilePath = file.filepath;
-    const originalFileName = file.originalFilename;
-
-    const uniqueFileName = `${uuidv4()}${path.extname(originalFileName)}`;
-    const finalFilePath = path.join(uploadDir, uniqueFileName);
-
-    fs.renameSync(tempFilePath, finalFilePath);
-
-    try {
-      // Now link the file to the patient in your database (PhysicalTherapyPlan)
-      const plan = await PhysicalTherapyPlan.findOneAndUpdate(
-        { patient: patientId }, // Find the plan by patientId
-        {
-          filePath: uniqueFileName,
-          fileName: originalFileName,
-          title: originalFileName.replace(/\.[^/.]+$/, ""),
-        },
-        { new: true, upsert: true } // Update or create the plan
-      );
-
-      // Log the uploaded plan record to the console
-      console.log("Uploaded Plan Record:", plan);
-
-      // Send the response back to the client
-      res.status(200).json({
-        title: originalFileName.replace(/\.[^/.]+$/, ""),
-        fileName: originalFileName,
-        filePath: uniqueFileName,
-        message: "Plan document uploaded and linked successfully!",
-      });
-    } catch (error) {
-      console.error("Error linking document to plan:", error);
-      res.status(500).json({ message: "Error linking document to plan" });
-    }
-  });
-});
-
-// Upload physical therapy exam document and link to patient
-// Upload physical therapy exam document and link to patient
-router.post("/py/upload-test", (req, res) => {
-  const form = new formidable.IncomingForm();
-  form.keepExtensions = true;
-  form.maxFileSize = 10 * 1024 * 1024; // 10MB
-
-  const uploadDir = path.join(__dirname, "../uploads/physical-therapy/exam");
-  if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-  form.uploadDir = uploadDir;
-
-  form.parse(req, async (err, fields, files) => {
-    if (err) {
-      console.error("Error parsing form:", err);
-      return res.status(500).json({ message: "Error parsing uploaded file" });
-    }
-
-    // Ensure that patientId is not an array and is a valid string
-    const patientId = fields.patientId && fields.patientId[0] ? fields.patientId[0] : null; // Extract the value from array if present
-
-    if (!patientId) {
-      console.log("Patient ID is missing!");
-      return res.status(400).json({ message: "Patient ID is required" });
-    }
-
-    // Log the patientId to verify it's received correctly
-    console.log("Patient ID from backend:", patientId);
-
-    const file = files.document[0];
-    const tempFilePath = file.filepath;
-    const originalFileName = file.originalFilename;
-
-    const uniqueFileName = `${uuidv4()}${path.extname(originalFileName)}`;
-    const finalFilePath = path.join(uploadDir, uniqueFileName);
-
-    fs.renameSync(tempFilePath, finalFilePath);
-
-    try {
-      // Now link the file to the patient in your database (PhysicalTherapyExam)
-      const Exam = await PhysicalTherapyExam.findOneAndUpdate(
-        { patient: patientId }, // Find the Exam by patientId
-        {
-          filePath: uniqueFileName,
-          fileName: originalFileName,
-          title: originalFileName.replace(/\.[^/.]+$/, ""),
-        },
-        { new: true, upsert: true } // Update or create the Exam
-      );
-
-      // Log the uploaded Exam record to the console
-      console.log("Uploaded Exam Record:", Exam);
-
-      // Send the response back to the client
-      res.status(200).json({
-        title: originalFileName.replace(/\.[^/.]+$/, ""),
-        fileName: originalFileName,
-        filePath: uniqueFileName,
-        message: "Exam document uploaded and linked successfully!",
-      });
-    } catch (error) {
-      console.error("Error linking document to Exam:", error);
-      res.status(500).json({ message: "Error linking document to Exam" });
-    }
-  });
-});
-
-
-
-
-
 
 
 // DRAST EL7ALA

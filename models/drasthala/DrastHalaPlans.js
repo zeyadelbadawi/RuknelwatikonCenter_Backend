@@ -1,4 +1,4 @@
-// models/PhysicalTherapyPlan.js
+// models/DrastHalaPlan.js
 const mongoose = require('mongoose');
 
 const DrastHalaPlanSchema = new mongoose.Schema(
