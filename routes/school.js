@@ -10,7 +10,6 @@ const PatientSchoolAssignment = require('../models/School/patientSchoolAssignmen
 const Patient = require('../models/users/Patient');
 
 
-
 // Add school Assignment
 router.post('/assign-to-school', async (req, res) => {
   const { patientId, notes } = req.body;
