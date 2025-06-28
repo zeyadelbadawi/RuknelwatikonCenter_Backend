@@ -15,6 +15,10 @@ const Session = require('../models/Sessions');
 const mongoose = require('mongoose');
 const Payment = require('../models/Payment');
 const PendingMoney = require('../models/PatientPendingMoney');
+const FullProgram = require("../models/FullProgram");
+const SingleProgram = require("../models/SingleProgram");
+const SchoolProgram = require("../models/SchoolProgram");
+const Money = require("../models/Money");
 
 const formidable = require("formidable");
 const fs = require("fs");
@@ -59,6 +63,8 @@ router.get("/signin", (req, res) => {
 router.get("/signup", (req, res) => {
   res.render("authentication/signup", { title: "Dashboard", subTitle: "SubTitle", layout: "../views/layout/layout2" });
 });
+
+
 
 
 // Register patient
@@ -2360,6 +2366,124 @@ router.post("/DRAST-7ALA/upload-plan", (req, res) => {
   });
 });
 
+
+// Function to generate a unique unicValue (UUID)
+const generateUniqueUnicValue = async () => {
+  let uniqueValue;
+  let exists = true;
+
+  // Loop to ensure the unicValue is unique in the collection
+  while (exists) {
+    uniqueValue = uuidv4(); // Generate a new UUID (this will be different every time)
+    
+    // Check if the unicValue already exists in the SchoolProgram collection
+    const existingProgram = await SchoolProgram.findOne({ unicValue: uniqueValue });
+    if (!existingProgram) {
+      exists = false; // Exit the loop if the unicValue does not exist
+    }
+  }
+
+  return uniqueValue;
+};
+router.post("/saveProgram", async (req, res) => {
+  const { programType, patientId, date, time, description, programKind } = req.body;
+
+  // Generate a unique unicValue for school evaluation
+  let unicValue = "";
+  if (programType === "school_evaluation") {
+    unicValue = await generateUniqueUnicValue(); // Get unique unicValue for school evaluation
+  }
+
+  // Log received data
+  console.log("Received request to save program data:", {
+    programType,
+    patientId,
+    date,
+    time,
+    description,
+    programKind,
+    unicValue,
+  });
+
+  try {
+    let newProgram;
+
+    if (programType === "full_program") {
+      newProgram = new FullProgram({
+        patientid: patientId,
+        date,
+        time,
+        description,
+      });
+      await newProgram.save();
+      console.log("Saved new FullProgram record:", newProgram); // Log FullProgram record
+    } else if (programType === "single_session") {
+      // Save selected services as an array in programKind
+      newProgram = new SingleProgram({
+        patientid: patientId,
+        date,
+        time,
+        description,
+        programkind: programKind,  // This will be an array of services
+      });
+      await newProgram.save();
+      console.log("Saved new SingleProgram record:", newProgram); // Log SingleProgram record
+    } else if (programType === "school_evaluation") {
+      newProgram = new SchoolProgram({
+        patientid: patientId,
+        date,
+        time,
+        description,
+        unicValue, // Save the generated unique ID for school evaluation
+      });
+      await newProgram.save();
+      console.log("Saved new SchoolProgram record:", newProgram); // Log SchoolProgram record
+    }
+
+    res.status(200).json({ message: "Program saved successfully", program: newProgram });
+  } catch (error) {
+    console.error("Error saving program:", error);
+    res.status(500).json({ message: "Error saving program", error });
+  }
+});
+
+
+// /authentication/saveMoneyRecord
+router.post("/saveMoneyRecord", async (req, res) => {
+  const { patientId, programId, price, status, invoiceId, programType, patientName } = req.body;
+
+  // Generate comment based on program type
+  let comment = "";
+  if (programType === "full_program") {
+    comment = `First evaluation session of full program for student ${patientName}`;
+  } else if (programType === "single_session") {
+    comment = `Single session for student ${patientName}`;
+  } else if (programType === "school_evaluation") {
+    comment = `School program for student ${patientName}`;
+  }
+
+  try {
+    // Create a new money record
+    const moneyRecord = new Money({
+      patientId,
+      programId,
+      price,
+      status,
+      invoiceId,
+      programType,
+      comment, // Add the generated comment
+    });
+
+    // Save the record
+    await moneyRecord.save();
+    console.log("Money record saved:", moneyRecord);
+
+    res.status(200).json({ message: "Money record saved successfully", moneyRecord });
+  } catch (error) {
+    console.error("Error saving money record:", error);
+    res.status(500).json({ message: "Error saving money record", error });
+  }
+});
 
 
 module.exports = router;

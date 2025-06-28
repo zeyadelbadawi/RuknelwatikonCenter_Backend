@@ -1,7 +1,7 @@
 // models/PatientOccupationalTherapyAssignment.js
 const mongoose = require('mongoose');
 
-const PatientOccupationalTherapyAssignmentSchema = new mongoose.Schema(
+const PatientABAAssignmentSchema = new mongoose.Schema(
   {
     patient: {
       type: mongoose.Schema.Types.ObjectId,
@@ -25,9 +25,9 @@ const PatientOccupationalTherapyAssignmentSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-const PatientOccupationalTherapyAssignment = mongoose.model(
-  'PatientOccupationalTherapyAssignment',
-  PatientOccupationalTherapyAssignmentSchema
+const PatientABAAssignment = mongoose.model(
+  'PatientABAAssignment',
+  PatientABAAssignmentSchema
 );
 
-module.exports = PatientOccupationalTherapyAssignment;
+module.exports = PatientABAAssignment;
