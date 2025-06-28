@@ -11,7 +11,8 @@ const school = require("./school");
 const ABA = require("./aba");
 const OccupationalTherapy = require("./OccupationalTherapy");
 const SpecialEducation = require("./SpecialEducation");
-
+const appointmentRouter = require("./appointment-route");
+const studentsAppointmentDepartmentRouter = require("./studentsAppointmentDepartment-route");
 
 router.use("/authentication", authentication);
 router.use("/physicalTherapy", physicalTherapy);
@@ -20,6 +21,8 @@ router.use("/school", school);
 router.use("/aba", ABA);
 router.use("/OccupationalTherapy", OccupationalTherapy);
 router.use("/SpecialEducation", SpecialEducation);
+router.use("/appointments", appointmentRouter);
+router.use("/students-appointment", studentsAppointmentDepartmentRouter);
 
 // Export the router
 module.exports = function (app) {
